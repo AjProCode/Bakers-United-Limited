@@ -4,69 +4,51 @@ import FileUpload from './components/FileUpload';
 import RecipeDisplay from './components/RecipeDisplay';
 import RecipeList from './components/RecipeList';
 import { ChefHatIcon, ChevronLeftIcon } from './components/Icons';
-
-const LOCAL_STORAGE_KEY = 'bakers-recipes-list';
+import { listenToRecipes, addRecipes, updateRecipe, deleteRecipe } from './services/firebaseService';
 
 const App: React.FC = () => {
   const [recipes, setRecipes] = useState<RecipeState[]>([]);
   const [activeRecipeId, setActiveRecipeId] = useState<string | null>(null);
   
   const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isAppLoading, setIsAppLoading] = useState<boolean>(true);
+  const [isUploading, setIsUploading] = useState<boolean>(false);
 
-  // Load recipes from local storage on initial mount
+  // Listen to Firebase for recipe changes
   useEffect(() => {
-    try {
-      const savedRecipesJSON = localStorage.getItem(LOCAL_STORAGE_KEY);
-      if (savedRecipesJSON) {
-        setRecipes(JSON.parse(savedRecipesJSON));
-      }
-    } catch (e) {
-      console.error("Failed to load recipes from local storage", e);
-      localStorage.removeItem(LOCAL_STORAGE_KEY);
-    }
+    const unsubscribe = listenToRecipes((recipesFromDb) => {
+      setRecipes(recipesFromDb);
+      setIsAppLoading(false);
+    });
+    
+    // Cleanup the listener when the component unmounts
+    return () => unsubscribe();
   }, []);
 
-  // Save recipes to local storage whenever they change
-  useEffect(() => {
-    try {
-      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(recipes));
-    } catch (e)      {
-      console.error("Failed to save recipes to local storage", e);
-    }
-  }, [recipes]);
 
   const handleGoToList = () => {
     setActiveRecipeId(null);
   };
 
-  const handleRecipesExtracted = (newRecipes: Recipe[]) => {
-    const newRecipeStates: RecipeState[] = newRecipes.map((recipe, index) => ({
-      id: `recipe-${Date.now()}-${index}`,
-      recipe: recipe,
-      multiplier: 1,
-      rating: 0,
-      notes: '',
-      cost: 0,
-      checkedIngredients: [],
-    }));
-    
-    const updatedRecipes = [...recipes, ...newRecipeStates];
-    setRecipes(updatedRecipes);
-    setActiveRecipeId(null); // Go back to the list view to see all new recipes
+  const handleRecipesExtracted = async (newRecipes: Recipe[]) => {
+    try {
+      await addRecipes(newRecipes);
+      setActiveRecipeId(null); // Go back to the list view to see all new recipes
+    } catch (e) {
+      console.error("Failed to save recipes to Firebase", e);
+      setError("There was a problem saving your recipes. Please try again.");
+    }
   };
 
   const handleUpdateActiveRecipe = (updates: Partial<Omit<RecipeState, 'recipe' | 'id'>>) => {
-    setRecipes(prevRecipes =>
-      prevRecipes.map(r =>
-        r.id === activeRecipeId ? { ...r, ...updates } : r
-      )
-    );
+    if (activeRecipeId) {
+      updateRecipe(activeRecipeId, updates);
+    }
   };
 
   const handleDeleteRecipe = (idToDelete: string) => {
-    if (window.confirm("Are you sure you want to delete this recipe?")) {
-      setRecipes(prevRecipes => prevRecipes.filter(r => r.id !== idToDelete));
+    if (window.confirm("Are you sure you want to delete this recipe? This will delete it for everyone.")) {
+      deleteRecipe(idToDelete);
       if (activeRecipeId === idToDelete) {
         setActiveRecipeId(null);
       }
@@ -74,6 +56,17 @@ const App: React.FC = () => {
   };
   
   const activeRecipe = recipes.find(r => r.id === activeRecipeId);
+
+  if (isAppLoading) {
+    return (
+      <div className="min-h-screen bg-amber-50 flex items-center justify-center">
+          <div className="flex flex-col items-center space-y-4">
+              <ChefHatIcon className="h-16 w-16 text-amber-600 animate-pulse" />
+              <p className="text-lg text-stone-600 font-semibold">Connecting to Recipe Library...</p>
+          </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-amber-50 text-stone-800 font-sans">
@@ -108,8 +101,8 @@ const App: React.FC = () => {
               <FileUpload
                 onRecipesExtracted={handleRecipesExtracted}
                 setError={setError}
-                setIsLoading={setIsLoading}
-                isLoading={isLoading}
+                setIsLoading={setIsUploading}
+                isLoading={isUploading}
                 error={error}
               />
             </div>

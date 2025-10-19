@@ -4,7 +4,7 @@ import type { Recipe } from '../types';
 import { UploadCloudIcon, AlertTriangleIcon, LoaderIcon } from './Icons';
 
 interface FileUploadProps {
-  onRecipesExtracted: (recipes: Recipe[]) => void;
+  onRecipesExtracted: (recipes: Recipe[]) => Promise<void>;
   setError: (error: string | null) => void;
   setIsLoading: (loading: boolean) => void;
   isLoading: boolean;
@@ -54,7 +54,7 @@ const FileUpload: React.FC<FileUploadProps> = ({ onRecipesExtracted, setError, s
       if (extractedRecipes.length === 0) {
         setError("We couldn't find any recipes in that file. Please try another one.");
       } else {
-        onRecipesExtracted(extractedRecipes);
+        await onRecipesExtracted(extractedRecipes);
       }
     } catch (err) {
       if (err instanceof Error) {
@@ -108,7 +108,7 @@ const FileUpload: React.FC<FileUploadProps> = ({ onRecipesExtracted, setError, s
           {isLoading ? (
             <div className="flex flex-col items-center justify-center space-y-4">
               <LoaderIcon className="h-12 w-12 text-amber-600 animate-spin" />
-              <p className="text-lg text-stone-600 font-semibold">Scanning for recipes...</p>
+              <p className="text-lg text-stone-600 font-semibold">Scanning & Saving...</p>
               <p className="text-sm text-stone-500 italic text-center px-4">"{currentTip}"</p>
             </div>
           ) : (
