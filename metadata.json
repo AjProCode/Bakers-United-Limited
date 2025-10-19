@@ -1,0 +1,5 @@
+{
+  "name": "Copy of Baker's Digital Recipe Book",
+  "description": "An intelligent recipe book for bakers. Upload photos or PDFs of your recipes, and the app will automatically extract, format, and organize them. Features include a recipe multiplier, grocery list, cost calculator, and a screen-awake mode for hands-free use in the kitchen.",
+  "requestFramePermissions": []
+}
